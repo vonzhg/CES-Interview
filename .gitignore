@@ -1,0 +1,16 @@
+# Audio / video recordings — not synced to GitHub
+*.mp4
+*.m4a
+*.mov
+*.avi
+*.mkv
+*.mp3
+*.wav
+*.aac
+*.flac
+
+# macOS
+.DS_Store
+
+# Local Claude settings
+.claude/settings.local.json
