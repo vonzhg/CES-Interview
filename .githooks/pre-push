@@ -1,0 +1,50 @@
+#!/bin/sh
+
+set -eu
+
+MAX_BYTES=10485760
+MAX_LABEL="10 MB"
+NULL_SHA="0000000000000000000000000000000000000000"
+
+obj_file="$(mktemp)"
+bad_file="$(mktemp)"
+trap 'rm -f "$obj_file" "$bad_file"' EXIT
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$NULL_SHA" ] && continue
+
+    if [ "$remote_sha" = "$NULL_SHA" ]; then
+        range="$local_sha"
+    else
+        range="$remote_sha..$local_sha"
+    fi
+
+    git rev-list --objects "$range" |
+    sed -n 's/^\([0-9a-f]\{40\}\) \(.*\)$/\1\t\2/p' >>"$obj_file"
+done
+
+if [ ! -s "$obj_file" ]; then
+    exit 0
+fi
+
+sort -u "$obj_file" |
+while IFS="$(printf '\t')" read -r object_id path; do
+    size="$(git cat-file -s "$object_id" 2>/dev/null || printf '0')"
+    if [ "$size" -gt "$MAX_BYTES" ]; then
+        printf '%s\t%s\n' "$size" "$path" >>"$bad_file"
+    fi
+done
+
+if [ ! -s "$bad_file" ]; then
+    exit 0
+fi
+
+echo "Push blocked: new files larger than $MAX_LABEL cannot be sent to GitHub."
+echo "Large files in the push:"
+while IFS="$(printf '\t')" read -r size path; do
+    mb="$(awk "BEGIN { printf \"%.2f\", $size / 1048576 }")"
+    printf '  %s MB  %s\n' "$mb" "$path"
+done <"$bad_file"
+echo "Remove the file from the pushed commits, split it, or migrate it to Git LFS."
+
+exit 1

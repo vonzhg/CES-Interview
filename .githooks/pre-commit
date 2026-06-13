@@ -1,0 +1,31 @@
+#!/bin/sh
+
+set -eu
+
+MAX_BYTES=10485760
+MAX_LABEL="10 MB"
+
+tmp_file="$(mktemp)"
+trap 'rm -f "$tmp_file"' EXIT
+
+git diff --cached --diff-filter=AM --name-only -z |
+while IFS= read -r -d '' path; do
+    size="$(git cat-file -s ":$path" 2>/dev/null || printf '0')"
+    if [ "$size" -gt "$MAX_BYTES" ]; then
+        printf '%s\t%s\n' "$size" "$path" >>"$tmp_file"
+    fi
+done
+
+if [ ! -s "$tmp_file" ]; then
+    exit 0
+fi
+
+echo "Commit blocked: staged files larger than $MAX_LABEL are not allowed."
+echo "Large files:"
+while IFS="$(printf '\t')" read -r size path; do
+    mb="$(awk "BEGIN { printf \"%.2f\", $size / 1048576 }")"
+    printf '  %s MB  %s\n' "$mb" "$path"
+done <"$tmp_file"
+echo "Keep generated data out of Git, split the file, or use Git LFS."
+
+exit 1

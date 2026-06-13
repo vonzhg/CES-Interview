@@ -12,5 +12,8 @@
 # macOS
 .DS_Store
 
+# Git bundle (synced via OneDrive for cross-Mac recovery, not via Git)
+.git-bundle
+
 # Local Claude settings
 .claude/settings.local.json

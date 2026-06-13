@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# post-commit hook: automatically refresh .git-bundle after every commit
+# so iCloud can sync the latest history to other Macs.
+#
+# This hook is non-blocking: if the export fails, the commit still succeeds.
+
+WORKTREE="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+BUNDLE_FILE="$WORKTREE/.git-bundle"
+
+git bundle create "$BUNDLE_FILE" --all 2>/dev/null && \
+    printf 'post-commit: .git-bundle updated (iCloud will sync to other Macs)\n' || \
+    printf 'post-commit: warning - failed to update .git-bundle\n'
